@@ -3,11 +3,47 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/nextjs";
 
-
 const globalStyles = `
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+  
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #000;
+    color: #fff;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #0a0a0a;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #262626;
+    border-radius: 10px;
+  }
+
+  @keyframes pulse-wave {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(2); }
+  }
+
+  @keyframes progress {
+    0% { stroke-dasharray: 0 100; }
+  }
+
+  .circle-bg {
+    fill: none;
+    stroke: #171717;
+    stroke-width: 2.8;
+  }
+
+  .circle {
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: 2.8;
+    stroke-linecap: round;
+    animation: progress 1.5s ease-out forwards;
   }
 `;
 
@@ -17,50 +53,50 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [finalReport, setFinalReport] = useState("");
+  const [score, setScore] = useState(0); // Added for the circle progress
   const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
+  
+  const { user } = useUser();
 
-  // --- VOICE SYSTEM ---
-
-  // 1. Prime the voices as soon as the page loads
+  // --- VOICE ENGINE (UNCHANGED) ---
   useEffect(() => {
-    const loadVoices = () => {
-      window.speechSynthesis.getVoices();
-    };
-    loadVoices();
+    const initVoices = () => { window.speechSynthesis.getVoices(); };
+    initVoices();
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
+      window.speechSynthesis.onvoiceschanged = initVoices;
     }
   }, []);
 
   const speak = (text) => {
-    window.speechSynthesis.cancel(); // Stop any overlapping speech
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
 
-    // Priority list for "Siri/Alexa" style quality
-    const preferredVoice = voices.find(v => 
-      v.name.includes("Google US English") || 
-      v.name.includes("Samantha") || 
-      v.name.includes("Microsoft Aria") || 
-      v.name.includes("Siri") ||
-      v.name.includes("Premium")
-    );
+    const cleanText = text.replace(/\[FINAL_REPORT\]/g, "").replace(/Score: \d+/g, "").trim();
+    const sentences = cleanText.split(/[.!?]/);
+    
+    sentences.forEach((sentence) => {
+      if (sentence.trim().length === 0) return;
+      const utterance = new SpeechSynthesisUtterance(sentence);
+      const voices = window.speechSynthesis.getVoices();
+      
+      const preferredVoice = voices.find(v => 
+        v.name.includes("Google US English") || 
+        v.name.includes("Natural") || 
+        v.name.includes("Samantha")
+      ) || voices[0];
 
-    if (preferredVoice) utterance.voice = preferredVoice;
-
-    // Human-like pacing
-    utterance.rate = 0.95; // Slightly slower sounds more natural
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    window.speechSynthesis.speak(utterance);
+      if (preferredVoice) utterance.voice = preferredVoice;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    });
   };
 
+  // --- LOGIC ---
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return alert("Browser not supported");
-
+    if (!SpeechRecognition) return;
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.onstart = () => setIsListening(true);
@@ -69,15 +105,54 @@ export default function Home() {
     recognition.start();
   };
 
-  // --- LOGIC ---
+  const processAiResponse = (aiReply) => {
+    if (aiReply.includes("[FINAL_REPORT]")) {
+      // Extract score using regex (e.g., Score: 85)
+      const scoreMatch = aiReply.match(/Score: (\d+)/);
+      if (scoreMatch) {
+        setScore(parseInt(scoreMatch[1]));
+      } else {
+        setScore(70); // Fallback
+      }
+      
+      setFinalReport(aiReply.replace("[FINAL_REPORT]", "").replace(/Score: \d+/g, "").trim());
+      setIsFinished(true);
+      speak("Session concluded. Analyzing performance rubrics and generating score.");
+    } else {
+      setChatHistory(prev => [...prev, { role: "ai", text: aiReply }]);
+      speak(aiReply);
+    }
+  };
+
+  const systemPromptInstructions = `
+    You are Echo AI, an elite executive recruiter. 
+    Tone: Professional, rigorous, and human-like. 
+    Method: Evaluate using STAR (Situation, Task, Action, Result) and PAR (Problem, Action, Result) rubrics.
+    Process: Ask 3-5 high-impact questions. Once finished, generate a detailed assessment.
+    Crucial: You MUST start your very final evaluation message with exactly: [FINAL_REPORT] and include a 'Score: X' out of 100.
+  `;
+
+  // Triggered when clicking "End Session & Evaluate"
+  const triggerFinalReport = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.post("http://localhost:8000/chat", {
+        message: "The candidate has requested to end the session. Provide the final evaluation with a Score: X out of 100 and the [FINAL_REPORT] dossier.",
+        history: chatHistory, 
+      });
+      processAiResponse(res.data.reply);
+    } catch (error) {
+      console.error(error);
+    } finally { setLoading(false); }
+  };
 
   useEffect(() => {
-    if (chatHistory.length === 0 && !isFinished) {
+    if (user && chatHistory.length === 0 && !isFinished) {
       (async () => {
         setLoading(true);
         try {
           const res = await axios.post("http://localhost:8000/chat", {
-            message: "Start the interview by introducing yourself.",
+            message: `${systemPromptInstructions} Start the interview for candidate ${user.firstName}. Introduce yourself as Echo AI.`,
             history: [], 
           });
           setChatHistory([{ role: "ai", text: res.data.reply }]);
@@ -85,113 +160,156 @@ export default function Home() {
         } finally { setLoading(false); }
       })();
     }
-  }, [isFinished]);
+  }, [user, isFinished]);
 
-  const sendMessage = async (customMsg = null) => {
-    const msgToSend = customMsg || message;
-    if (!msgToSend.trim()) return;
-
-    const newHistory = [...chatHistory, { role: "user", text: msgToSend }];
+  const sendMessage = async () => {
+    if (!message.trim()) return;
+    const newHistory = [...chatHistory, { role: "user", text: message }];
     setChatHistory(newHistory);
     setLoading(true);
+    const currentMsg = message;
     setMessage("");
 
     try {
       const res = await axios.post("http://localhost:8000/chat", {
-        message: msgToSend,
+        message: currentMsg,
         history: chatHistory, 
       });
-
-      const aiReply = res.data.reply;
-      if (aiReply.includes("Summary Report")) {
-        setFinalReport(aiReply);
-        setIsFinished(true);
-        speak("The interview is over. I'm preparing your report now.");
-      } else {
-        setChatHistory([...newHistory, { role: "ai", text: aiReply }]);
-        speak(aiReply);
-      }
+      processAiResponse(res.data.reply);
     } finally { setLoading(false); }
   };
 
-  // --- RENDER ---
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory, loading]);
+
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4 text-slate-900">
+    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 selection:bg-white selection:text-black">
       <style>{globalStyles}</style>
-      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col h-[750px] overflow-hidden border border-slate-200">
-        
-        {/* Header */}
-        <div className="p-5 bg-white border-b border-slate-100 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-            <h1 className="font-bold text-slate-800 tracking-tight text-xl">
-              {isFinished ? "Interview Results" : "Rachel Lee"}
-            </h1>
-          </div>
-          <button 
-            onClick={() => { window.speechSynthesis.cancel(); setIsFinished(false); setChatHistory([]); }}
-            className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors"
-          >
-            {isFinished ? "Restart" : "Reset"}
-          </button>
-        </div>
 
-        {!isFinished ? (
-          <>
-            {/* Chat Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {chatHistory.map((chat, i) => (
-                <div key={i} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[80%] p-4 rounded-2xl ${
-                    chat.role === "user" ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "bg-slate-100 text-slate-800"
-                  }`}>
-                    <p className="text-sm leading-relaxed">{chat.text}</p>
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
+      <SignedIn>
+        <div className="w-full max-w-4xl h-[85vh] flex flex-col border border-neutral-800 bg-neutral-950 rounded-sm shadow-2xl overflow-hidden">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between px-8 py-6 border-b border-neutral-900 bg-neutral-950 z-10">
+            <div className="flex items-center gap-4">
+              <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-red-500 animate-pulse' : 'bg-neutral-700'}`} />
+              <span className="text-[10px] uppercase tracking-[0.4em] text-neutral-500 font-bold">
+                {isFinished ? "Analysis Complete" : `ECHO AI / Candidate: ${user?.firstName}`}
+              </span>
             </div>
-
-            {/* Input / Mic */}
-            <div className="p-6 bg-white border-t border-slate-50 flex gap-4 items-center">
-              <button
-                onClick={startListening}
-                className={`p-4 rounded-full transition-all ${
-                  isListening ? "bg-red-500 text-white scale-110 shadow-lg shadow-red-200" : "bg-slate-100 text-slate-400 hover:bg-slate-200"
-                }`}
+            <div className="flex items-center gap-8">
+               <button 
+                onClick={isFinished ? () => window.location.reload() : triggerFinalReport}
+                className="text-[10px] uppercase tracking-widest text-neutral-600 hover:text-white transition-colors font-bold"
               >
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 005.945 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" />
-                </svg>
+                {isFinished ? "New Session" : "End Session & Evaluate"}
               </button>
-              <input
-                className="flex-1 bg-slate-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 text-slate-800"
-                placeholder={isListening ? "Listening..." : "Tell Rachel something..."}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              />
-              <button onClick={() => sendMessage()} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all">
-                Send
-              </button>
+              <UserButton appearance={{ elements: { userButtonAvatarBox: "w-8 h-8 rounded-none border border-neutral-700" } }} />
             </div>
-          </>
-        ) : (
-          /* Report View */
-          <div className="flex-1 overflow-y-auto p-10 text-center animate-in fade-in duration-500">
-             <div className="prose prose-slate mx-auto text-left bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-inner">
-                {finalReport.split('\n').map((line, i) => (
-                  <p key={i} className={`mb-2 ${line.startsWith('###') ? 'text-xl font-bold text-blue-700 mt-6' : ''}`}>
-                    {line.replace(/###/g, '').replace(/\*\*/g, '')}
-                  </p>
-                ))}
-             </div>
-             <button onClick={() => window.print()} className="mt-8 bg-slate-900 text-white py-4 px-12 rounded-2xl font-black shadow-xl">
-               EXPORT PDF
-             </button>
           </div>
-        )}
-      </div>
+
+          {!isFinished ? (
+            <>
+              {/* Chat */}
+              <div className="flex-1 overflow-y-auto p-12 space-y-12 custom-scrollbar">
+                {chatHistory.map((chat, i) => (
+                  <div key={i} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] ${chat.role === "user" ? "text-right" : "text-left"}`}>
+                      <span className="text-[9px] uppercase tracking-widest text-neutral-600 font-bold block mb-3">
+                        {chat.role === "user" ? user?.firstName : "ECHO_AI"}
+                      </span>
+                      <p className={`text-lg font-light leading-relaxed tracking-tight ${chat.role === "user" ? "text-white" : "text-neutral-400"}`}>
+                        {chat.text}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div className="flex gap-1 items-center h-4">
+                    <div className="w-1 h-3 bg-neutral-800 animate-[pulse-wave_1s_infinite_0ms]" />
+                    <div className="w-1 h-3 bg-neutral-800 animate-[pulse-wave_1s_infinite_200ms]" />
+                    <div className="w-1 h-3 bg-neutral-800 animate-[pulse-wave_1s_infinite_400ms]" />
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Input */}
+              <div className="p-8 border-t border-neutral-900 bg-black">
+                <div className="flex gap-6 items-end max-w-3xl mx-auto">
+                   <button onClick={startListening} className={`mb-3 transition-colors ${isListening ? "text-red-500" : "text-neutral-500 hover:text-white"}`}>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                      <path d="M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4Z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    </svg>
+                  </button>
+                  <input
+                    className="flex-1 bg-transparent border-b border-neutral-800 py-3 text-lg font-light focus:outline-none focus:border-white transition-colors placeholder:text-neutral-800"
+                    placeholder={isListening ? "Listening..." : "Provide response..."}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                  />
+                  <button onClick={sendMessage} className="text-[10px] uppercase tracking-[0.2em] font-black border border-neutral-800 px-6 py-3 hover:bg-white hover:text-black transition-all">
+                    Send
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Result View with Circle Progress */
+            <div className="flex-1 overflow-y-auto p-16 custom-scrollbar bg-black">
+               <div className="max-w-3xl mx-auto flex flex-col items-center">
+                  
+                  {/* Circle Score UI */}
+                  <div className="relative w-40 h-40 mb-10">
+                    <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                      <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="circle" strokeDasharray={`${score}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-4xl font-extrabold tracking-tighter">{score}</span>
+                      <span className="text-[8px] uppercase tracking-widest text-neutral-500 font-bold">Index</span>
+                    </div>
+                  </div>
+
+                  <div className="w-full text-center mb-16">
+                      <h2 className="text-xs uppercase tracking-[0.5em] text-neutral-600 mb-2">Performance Assessment</h2>
+                      <h3 className="text-3xl font-light tracking-tighter uppercase">{user?.firstName} / Candidate Dossier</h3>
+                  </div>
+
+                  <div className="w-full space-y-12 text-left border-l border-neutral-900 pl-10">
+                    {finalReport.split('\n').filter(l => l.trim()).map((line, i) => (
+                      <div key={i}>
+                        {line.includes(':') ? (
+                          <div className="grid grid-cols-3 gap-4">
+                            <span className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold">{line.split(':')[0]}</span>
+                            <span className="col-span-2 text-neutral-300 font-light leading-relaxed text-sm">{line.split(':')[1]}</span>
+                          </div>
+                        ) : (
+                          <p className={`text-sm leading-loose tracking-wide ${line.startsWith('#') ? 'text-xl font-light text-white mt-8 border-b border-neutral-900 pb-2' : 'text-neutral-400'}`}>
+                            {line.replace(/###/g, '').replace(/\*\*/g, '')}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-24 pt-8 border-t border-neutral-900 flex gap-4">
+                    <button onClick={() => window.print()} className="border border-white text-white px-10 py-4 text-[10px] uppercase tracking-[0.3em] font-bold hover:bg-white hover:text-black transition-all">
+                      Export Dossier
+                    </button>
+                    <button onClick={() => window.location.reload()} className="border border-neutral-800 text-neutral-400 px-10 py-4 text-[10px] uppercase tracking-[0.3em] font-bold hover:text-white transition-all">
+                      New Session
+                    </button>
+                  </div>
+               </div>
+            </div>
+          )}
+        </div>
+      </SignedIn>
+      <SignedOut><SignInButton /></SignedOut>
     </main>
   );
 }
