@@ -31,25 +31,19 @@ Echo-01 is a high-speed, voice-first AI recruitment platform designed to simulat
 
 ## 🛠️ Installation & Setup
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/kamalesansam/Code-A-Thon-AI-Interviewer-Agent.git
-cd Code-A-Thon-AI-Interviewer-Agent
-```
-### 2. Installation & Setup
+### 1. Installation & Setup
 Clone the Repository
 ```bash
 git clone https://github.com/YOUR_USERNAME/echo-01-ai-recruiter.git
 cd echo-01-ai-recruiter
 ```
 
-### 3. Frontend Setup (Next.js)Bash# Install dependencies
+### 2. Frontend Setup (Next.js)Bash# Install dependencies
 ```bash
 npm install
-```
 
 # Run development server
-```bash
+bash
 npm run dev
 ```
 
