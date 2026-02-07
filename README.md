@@ -61,6 +61,25 @@ pip install fastapi uvicorn groq openai python-dotenv
 python main.py
 ```
 
+### 4. 🔑 Environment Configuration
+
+The project requires two separate environment files to function. Follow these steps exactly:
+
+1. Root Directory (Frontend) Copy the example file to a local environment file:
+
+```bash
+cp .env.example .env.local
+```
+Then, open .env.local and add your Clerk credentials.
+
+2. AI-Interviewer Directory (Backend) Navigate into the backend folder and copy the example file:
+
+```bash
+cd ai-interviewer
+cp env.example .env
+```
+Then, open .env and add your Groq and OpenAI API keys.
+
 📝 Roadmap
 
 [x] Initial Voice & Chat Integration
