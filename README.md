@@ -62,6 +62,7 @@ python main.py
 ```
 
 📝 Roadmap
+
 [x] Initial Voice & Chat Integration
 
 [x] User Authentication (Clerk)
