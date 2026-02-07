@@ -57,7 +57,14 @@ npm run dev
 
 # Install dependencies
 ```bash
+# Enter the backend folder
+cd ai-interviewer
+
+# Install dependencies
 pip install fastapi uvicorn groq openai python-dotenv
+
+# Start the server
+python main.py
 ```
 
 
@@ -65,4 +72,17 @@ pip install fastapi uvicorn groq openai python-dotenv
 # Start the server
 python main.py
 
-📝 Roadmap[x] Initial Voice & Chat Integration[x] User Authentication (Clerk)[ ] Resume Parsing: Upload PDF to tailor questions to your background.[ ] Technical Live Coding: Integrated code editor for real-time problem solving.[ ] Multi-Voice Support: Choose between different interviewer personalities.🛡️ License & SecurityThis project is built for educational purposes.Security Note: All API keys are managed via environment variables and are excluded from version control via .gitignore.
+📝 Roadmap
+[x] Initial Voice & Chat Integration
+
+[x] User Authentication (Clerk)
+
+[ ] Resume Parsing: Upload PDF to tailor questions to your background.
+
+[ ] Technical Live Coding: Integrated code editor for real-time problem solving.
+
+[ ] Multi-Voice Support: Choose between different interviewer personalities.
+
+
+🛡️ License & Security
+This project is built for educational purposes.
