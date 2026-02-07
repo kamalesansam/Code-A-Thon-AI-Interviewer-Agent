@@ -42,7 +42,6 @@ cd echo-01-ai-recruiter
 npm install
 
 # Run development server
-bash
 npm run dev
 ```
 
