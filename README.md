@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 🤖 Echo-01: Neural Interview Engine
 
-## Getting Started
+Echo-01 is a high-speed, voice-first AI recruitment platform designed to simulate technical interviews. By combining **Llama 3** for low-latency reasoning and **OpenAI TTS** for human-like speech, Echo-01 provides a realistic, high-pressure environment for candidates to practice their skills.
 
-First, run the development server:
 
+
+---
+
+## 🚀 The Tech Stack
+
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend** | **Next.js 14** | High-performance UI & Client-side logic |
+| **Backend** | **FastAPI** | High-concurrency API for LLM orchestration |
+| **Inference** | **Groq (Llama 3.3)** | Sub-second text response generation |
+| **Voice (TTS)** | **OpenAI TTS-1** | Neural, emotional text-to-speech |
+| **Auth** | **Clerk** | Secure Google & Email authentication |
+| **Styling** | **Tailwind CSS** | Modern, responsive interface design |
+
+---
+
+## ✨ Key Features
+
+* **🎙️ Real-time Voice Interaction:** Low-latency speech synthesis makes the bot feel alive and conversational.
+* **🧠 Adaptive Questioning:** Echo-01 tracks conversation history to ask follow-up questions based on your answers.
+* **🔐 Secure Sessions:** Clerk-powered authentication ensures personalized experiences and data privacy.
+* **📊 Performance Diagnostics:** Receive a detailed "Summary Report" with a score and feedback.
+* **⚡ Sub-Second Latency:** Utilizing Groq’s LPU technology to ensure the AI "thinks" faster than a human.
+
+---
+
+## 🛠️ Installation & Setup
+
+### 1. Clone the Repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone [https://github.com/kamalesansam/echo-01-ai-recruiter.git](https://github.com/kamalesansam/echo-01-ai-recruiter.git)
+cd echo-01-ai-recruiter
+```
+Installation & Setup1. 
+Clone the Repository
+```bash
+git clone https://github.com/YOUR_USERNAME/echo-01-ai-recruiter.git
+cd echo-01-ai-recruiter
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Frontend Setup (Next.js)Bash# Install dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+# Run development server
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Backend Setup (FastAPI)Bashcd ai-interviewer
 
-## Learn More
+# Install dependencies
+```bash
+pip install fastapi uvicorn groq openai python-dotenv
+```
 
-To learn more about Next.js, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Start the server
+python main.py
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+📝 Roadmap[x] Initial Voice & Chat Integration[x] User Authentication (Clerk)[ ] Resume Parsing: Upload PDF to tailor questions to your background.[ ] Technical Live Coding: Integrated code editor for real-time problem solving.[ ] Multi-Voice Support: Choose between different interviewer personalities.🛡️ License & SecurityThis project is built for educational purposes.Security Note: All API keys are managed via environment variables and are excluded from version control via .gitignore.
