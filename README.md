@@ -68,7 +68,7 @@ The project requires two separate environment files to function. Follow these st
 1. Root Directory (Frontend) Copy the example file to a local environment file:
 
 ```bash
-cp .env.example .env.local
+cp env.example .env.local
 ```
 Then, open .env.local and add your Clerk credentials.
 
